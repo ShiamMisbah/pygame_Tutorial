@@ -28,13 +28,22 @@ class Player(pygame.sprite.Sprite):
         self.direction.y = int(keys[pygame.K_DOWN]) - int(keys[pygame.K_UP])
         self.direction = self.direction.normalize() if self.direction else self.direction
         if recent_keys[pygame.K_SPACE] and self.can_shoot:
-            Laser(laser_surf, self.rect.midtop, all_sprites)
+            Laser(laser_surf, self.rect.midtop, (all_sprites, laser_sprites))
             self.can_shoot = False
             self.laser_shoot_time = pygame.time.get_ticks()
 
         self.laser_timer()
-        # self.rect.left <= 0 or self.rect.right >= WINDOW_WIDTH:
-        self.rect.center += self.direction * self.speed * dt
+        if (self.rect.left < 0):
+            self.rect.left = 0
+        elif (self.rect.right > WINDOW_WIDTH):
+            self.rect.right = WINDOW_WIDTH
+        elif (self.rect.top < 0):
+            self.rect.top = 0
+        elif (self.rect.bottom > WINDOW_HEIGHT):
+            self.rect.bottom = WINDOW_HEIGHT   
+        else:
+            self.rect.center += self.direction * self.speed * dt
+        
 
 class Star(pygame.sprite.Sprite):
     def __init__(self, groups, surf):
@@ -69,6 +78,23 @@ class Meteor(pygame.sprite.Sprite):
         if current_time - self.born_time >= self.duration:
             self.kill()
 
+
+def collisions():
+    global running
+    collided_sprite = pygame.sprite.spritecollide(player, meteor_sprites, True)
+    if collided_sprite:
+        running = False
+    for laser in laser_sprites:
+        collided_sprite = pygame.sprite.spritecollide(laser, meteor_sprites, True)
+        if collided_sprite:
+            laser.kill()
+
+def display_score():
+    current_time = pygame.time.get_ticks()
+    text_surf = font.render(str(current_time), True, (240,240,240))
+    text_rect = text_surf.get_frect(midbottom = (WINDOW_WIDTH/2, WINDOW_HEIGHT - 50))
+    display_surface.blit(text_surf, text_rect)
+
 pygame.init()
 WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
 display_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -77,17 +103,23 @@ running = True
 clock = pygame.time.Clock()
 path = join('Game1','images')
 
-all_sprites = pygame.sprite.Group()
-star_surf = pygame.image.load(path+'/star.png').convert_alpha()
-for i in range(20):
-    Star(all_sprites, star_surf)
-player = Player(all_sprites)
+
 
 
 
 # importing image
+star_surf = pygame.image.load(path+'/star.png').convert_alpha()
 meteor_surf = pygame.image.load(path+'/meteor.png')
 laser_surf = pygame.image.load(path+'/laser.png')
+font = pygame.font.Font(path+'/Oxanium-Bold.ttf', 40)
+
+# All sprites
+all_sprites = pygame.sprite.Group()
+meteor_sprites = pygame.sprite.Group()
+laser_sprites = pygame.sprite.Group()
+for i in range(20):
+    Star(all_sprites, star_surf)
+player = Player(all_sprites)
 
 # custom event --> meteor event
 meteor_event = pygame.event.custom_type()
@@ -99,13 +131,17 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == meteor_event:
-            Meteor(meteor_surf, (randint(0, WINDOW_WIDTH - meteor_surf.get_width()), randint(-200, -100)), all_sprites)
+            Meteor(meteor_surf, (randint(0, WINDOW_WIDTH - meteor_surf.get_width()), randint(-200, -100)), (all_sprites, meteor_sprites))
 
     all_sprites.update(dt)
+    collisions()
+
 
     # draw the game
-    display_surface.fill('darkgray')
+    display_surface.fill('#3a2e3f')
     all_sprites.draw(display_surface)
+    display_score()
+
 
     pygame.display.update()
 
